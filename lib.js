@@ -1,5 +1,5 @@
 // לוגיקה משותפת: שליפת ביטויי Arcade מ-JSON של פריט, ויצירת קובץ zip (ללא תלויות).
-const EXPR_KEYS = new Set(['expression', 'valueExpression', 'arcadeExpression', 'script']);
+const EXPR_KEYS = new Set(['expression', 'valueExpression', 'arcadeExpression', 'script', 'arcadeScript']);
 const TITLE_KEYS = ['title', 'name', 'label', 'id'];
 const CTX_HINT = ['popupInfo', 'layerDefinition', 'formInfo', 'url', 'type', 'widgetName'];
 
@@ -22,6 +22,10 @@ export function walk(node, path, ctx, out) {
   for (const [k, v] of Object.entries(node)) {
     const p = path ? `${path}.${k}` : k;
     if (EXPR_KEYS.has(k) && typeof v === 'string' && v.trim()) {
+      // רעש: מפת הבסיס של Esri, מצביעי טופס (expr/...), ביטויי מערכת טריוויאליים
+      if (p.startsWith('baseMap.')) continue;
+      if (k === 'valueExpression' && p.includes('formElements') && /^expr\//.test(v.trim())) continue;
+      if (/^(true|false|\$view\.scale)$/.test(v.trim())) continue;
       // "script" נספר רק אם נראה כמו Arcade (למנוע רעש)
       if (k === 'script' && !/(\breturn\b|\bvar\b|\$|FeatureSet|Portal)/.test(v)) continue;
       out.push({ path: p, context: ctx, key: k, name: node.name || node.title || '', returnType: node.returnType || '', expression: v });
@@ -35,7 +39,7 @@ export function classify(path) {
   if (p.includes('popupinfo')) return 'popup';
   if (p.includes('forminfo')) return 'form';
   if (p.includes('visualvariables') || p.includes('renderer')) return 'renderer';
-  if (p.endsWith('.script') || p.includes('datasources')) return 'data-expression';
+  if (p.endsWith('.script') || p.endsWith('.arcadescript') || p.includes('datasources')) return 'data-expression';
   return 'other';
 }
 
