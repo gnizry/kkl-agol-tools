@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>כלי ArcGIS Online – ייצוא ביטויי Arcade</title>
+<style>
+  :root { --g:#166534; --bd:#d6dde3; --bg:#f4f6f8; }
+  * { box-sizing: border-box; }
+  body { margin:0; font-family: Rubik, Assistant, system-ui, sans-serif; background:var(--bg); color:#1e293b; }
+  main { max-width: 860px; margin: 0 auto; padding: 16px; }
+  h1 { font-size: 22px; margin: 8px 0 4px; } .sub { color:#64748b; margin:0 0 16px; font-size:14px; }
+  .card { background:#fff; border:1px solid var(--bd); border-radius:14px; padding:16px; margin-bottom:14px; }
+  .card h2 { font-size:16px; margin:0 0 10px; }
+  label { display:block; font-size:13px; color:#475569; margin:8px 0 3px; }
+  input, select, textarea { width:100%; padding:9px 10px; border:1px solid var(--bd); border-radius:9px; font:inherit; }
+  textarea { min-height: 80px; direction:ltr; font-family: ui-monospace, Consolas, monospace; font-size:13px; }
+  .ltr { direction:ltr; text-align:left; }
+  .row { display:flex; gap:10px; flex-wrap:wrap; } .row > * { flex:1 1 200px; }
+  button { background:var(--g); color:#fff; border:0; border-radius:9px; padding:10px 16px; font:inherit; cursor:pointer; margin-top:10px; }
+  button.sec { background:#fff; color:var(--g); border:1px solid var(--g); }
+  button:disabled { opacity:.5; cursor:default; }
+  .note { font-size:12.5px; color:#64748b; margin-top:8px; line-height:1.5; }
+  .ok { color:var(--g); } .err { color:#b91c1c; }
+  #results { max-height: 320px; overflow:auto; border:1px solid var(--bd); border-radius:9px; margin-top:10px; }
+  .it { display:flex; gap:8px; align-items:center; padding:7px 10px; border-bottom:1px solid #eef1f4; font-size:14px; }
+  .it input { width:auto; } .it .t { flex:1; } .it .ty { color:#64748b; font-size:12px; }
+  pre { background:#0f172a; color:#e2e8f0; padding:10px; border-radius:9px; max-height:260px; overflow:auto; direction:ltr; text-align:left; font-size:12.5px; white-space:pre-wrap; }
+  #log div { font-size:13.5px; padding:2px 0; }
+</style>
+</head>
+<body>
+<main>
+  <h1>ייצוא ביטויי Arcade מ-ArcGIS Online</h1>
+  <p class="sub">התחברות לכל ארגון, בחירת פריטים, והורדת zip עם קבצי .arcade מסודרים + גיבוי JSON.</p>
+
+  <section class="card" id="login">
+    <h2>1. התחברות</h2>
+    <div class="row">
+      <div><label>כתובת הפורטל / הארגון</label><input id="portal" class="ltr" list="portals" value="https://kkl.maps.arcgis.com" autocomplete="off"><datalist id="portals"></datalist></div>
+    </div>
+    <div class="row">
+      <div><label>שם משתמש</label><input id="user" class="ltr" autocomplete="username"></div>
+      <div><label>סיסמה</label><input id="pass" class="ltr" type="password" autocomplete="current-password"></div>
+    </div>
+    <button id="connect">התחבר</button> <span id="cstatus" class="note"></span>
+    <p class="note">הסיסמה נשלחת ישירות לפורטל שבחרת ואינה נשמרת בשום מקום. הטוקן נשמר בזיכרון הדף בלבד ונעלם ברענון. קוד האתר גלוי ב-GitHub. חשבונות עם כניסה דרך SSO (Google/Microsoft) לא יעבדו כאן – להדביק טוקן במקום סיסמה:
+      <a href="#" id="tokmode">הדבקת טוקן</a></p>
+  </section>
+
+  <section class="card" id="pick" hidden>
+    <h2>2. בחירת פריטים</h2>
+    <div class="row">
+      <div><label>חיפוש (שם / מילות מפתח, אפשר להשאיר ריק)</label><input id="q"></div>
+      <div><label>סוג</label><select id="type">
+        <option value="">הכל (מפות, דשבורדים, אפליקציות)</option>
+        <option value='type:"Web Map"'>מפה (Web Map)</option>
+        <option value='type:"Dashboard"'>דשבורד</option>
+        <option value='type:"Web Experience"'>Experience Builder</option>
+        <option value='type:"Form"'>טופס (Survey123 / Field Maps)</option>
+        <option value='type:"Web Mapping Application"'>אפליקציית ווב</option>
+      </select></div>
+    </div>
+    <label><input type="checkbox" id="mine" checked style="width:auto"> רק פריטים שבבעלותי</label>
+    <button id="search" class="sec">חפש</button>
+    <div id="results" hidden></div>
+    <label style="margin-top:12px">או הדבקת מזהים / קישורים (אחד בכל שורה)</label>
+    <textarea id="ids" placeholder="6a3bf8b155e04b049b0835a3a0d5ace4"></textarea>
+    <button id="export">ייצא ביטויים והורד zip</button>
+  </section>
+
+  <section class="card" id="out" hidden>
+    <h2>3. תוצאות</h2>
+    <div id="log"></div>
+    <pre id="preview" hidden></pre>
+  </section>
+</main>
+<script type="module" src="app.js"></script>
+</body>
+</html>
