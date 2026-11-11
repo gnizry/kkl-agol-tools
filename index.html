@@ -25,6 +25,12 @@
   #results { max-height: 320px; overflow:auto; border:1px solid var(--bd); border-radius:9px; margin-top:10px; }
   .it { display:flex; gap:8px; align-items:center; padding:7px 10px; border-bottom:1px solid #eef1f4; font-size:14px; }
   .it input { width:auto; } .it .t { flex:1; } .it .ty { color:#64748b; font-size:12px; }
+  .badge { font-size:12px; border-radius:20px; padding:2px 9px; white-space:nowrap; }
+  .b-same { background:#e2e8f0; color:#475569; } .b-changed { background:#fef3c7; color:#92400e; } .b-new { background:#dbeafe; color:#1e40af; } .b-miss { background:#fee2e2; color:#991b1b; }
+  .sr { display:flex; gap:8px; align-items:center; padding:6px 8px; border-bottom:1px solid #eef1f4; font-size:13.5px; } .sr input { width:auto; } .sr .f { color:#64748b; font-size:12px; direction:ltr; }
+  details.df { margin:0 8px 8px; } details.df summary { cursor:pointer; font-size:12.5px; color:#475569; }
+  .diff { direction:ltr; text-align:left; font:12px ui-monospace, Consolas, monospace; background:#0f172a; color:#cbd5e1; border-radius:8px; padding:8px; max-height:300px; overflow:auto; white-space:pre-wrap; }
+  .diff .p { color:#86efac; } .diff .m { color:#fca5a5; } .diff .e { color:#64748b; }
   pre { background:#0f172a; color:#e2e8f0; padding:10px; border-radius:9px; max-height:260px; overflow:auto; direction:ltr; text-align:left; font-size:12.5px; white-space:pre-wrap; }
   #log div { font-size:13.5px; padding:2px 0; }
 </style>
@@ -67,6 +73,21 @@
     <label style="margin-top:12px">או הדבקת מזהים / קישורים (אחד בכל שורה)</label>
     <textarea id="ids" placeholder="6a3bf8b155e04b049b0835a3a0d5ace4"></textarea>
     <button id="export">ייצא ביטויים והורד zip</button>
+  </section>
+
+  <section class="card" id="sync" hidden>
+    <h2>סנכרון מול GitHub (בדיקת שינויים)</h2>
+    <p class="note" style="margin-top:0">משווה את הביטויים בפריטים שבחרת בשלב 2 לקבצים במאגר, ושומר את מה שהשתנה בענף חדש (לא ב-main), כדי שתוכל לבדוק ולמזג.</p>
+    <div class="row">
+      <div><label>מאגר (בעלים/שם)</label><input id="ghrepo" class="ltr" value="gnizry/arcade-library"></div>
+      <div><label>ענף בסיס</label><input id="ghbase" class="ltr" value="main"></div>
+    </div>
+    <label>GitHub token <a href="https://github.com/settings/personal-access-tokens/new" target="_blank" rel="noopener">(יצירה)</a> – Fine-grained, למאגר הזה בלבד, הרשאת Contents: Read and write</label>
+    <input id="ghtoken" class="ltr" type="password" autocomplete="off">
+    <button id="check">בדוק שינויים מול GitHub</button>
+    <div id="syncres"></div>
+    <button id="commit" hidden>שמור את המסומנים בענף חדש ב-GitHub</button>
+    <div id="commitres" class="note"></div>
   </section>
 
   <section class="card" id="out" hidden>

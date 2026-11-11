@@ -130,3 +130,107 @@ export async function api(portal, path, token, params = {}) {
   if (j && j.error) throw new Error(j.error.message || JSON.stringify(j.error));
   return j;
 }
+
+// ================= סנכרון מול GitHub =================
+export const normText = (s) => String(s || '').replace(/\r\n?/g, '\n').split('\n').map((l) => l.replace(/[ \t]+$/, '')).join('\n').trim();
+
+// כותרת תיעוד של המאגר: בלוק שנפתח ב-// ==== ומכיל @name, ונסגר ב-// ====
+export function splitHeader(text) {
+  const t = String(text || '').replace(/\r\n?/g, '\n');
+  const lines = t.split('\n');
+  if (!/^\/\/ ?=+\s*$/.test(lines[0] || '')) return { header: '', body: t };
+  let end = -1;
+  for (let i = 1; i < lines.length; i++) if (/^\/\/ ?=+\s*$/.test(lines[i])) { end = i; break; }
+  if (end < 0) return { header: '', body: t };
+  const header = lines.slice(0, end + 1).join('\n');
+  if (!/@name:/.test(header)) return { header: '', body: t };
+  return { header, body: lines.slice(end + 1).join('\n').replace(/^\n+/, '') };
+}
+
+export function sameExpr(agolText, repoText) {
+  const a = normText(agolText);
+  if (a === normText(repoText)) return true;
+  return a === normText(splitHeader(repoText).body);
+}
+
+// קובץ חדש לתוכן שהשתנה ב-AGOL: שומר את כותרת המאגר, מעדכן @updated
+export function buildUpdatedFile(agolText, repoText, today) {
+  const ag = String(agolText).replace(/\r\n?/g, '\n').replace(/\s+$/, '') + '\n';
+  if (splitHeader(ag).header) return ag; // הביטוי ב-AGOL כבר כולל כותרת משלו
+  const { header } = splitHeader(repoText);
+  if (!header) return ag;
+  const h = header.includes('@updated:') ? header.replace(/(\/\/ @updated:\s*).*/, `$1${today}`) : header;
+  return h + '\n\n' + ag;
+}
+
+export function lineDiff(aText, bText, ctx = 3) {
+  const a = normText(aText).split('\n'), b = normText(bText).split('\n');
+  const n = a.length, m = b.length;
+  if (n * m > 9e6) return [{ t: ' ', s: `(קובץ גדול מדי להצגת הבדלים: ${n} מול ${m} שורות)` }];
+  const L = Array.from({ length: n + 1 }, () => new Uint16Array(m + 1));
+  for (let i = n - 1; i >= 0; i--) for (let j = m - 1; j >= 0; j--) L[i][j] = a[i] === b[j] ? L[i + 1][j + 1] + 1 : Math.max(L[i + 1][j], L[i][j + 1]);
+  const out = []; let i = 0, j = 0;
+  while (i < n && j < m) {
+    if (a[i] === b[j]) { out.push({ t: ' ', s: a[i] }); i++; j++; }
+    else if (L[i + 1][j] >= L[i][j + 1]) { out.push({ t: '-', s: a[i++] }); }
+    else { out.push({ t: '+', s: b[j++] }); }
+  }
+  while (i < n) out.push({ t: '-', s: a[i++] });
+  while (j < m) out.push({ t: '+', s: b[j++] });
+  // השארת הקשר סביב שינויים בלבד
+  const keep = new Array(out.length).fill(false);
+  out.forEach((o, k) => { if (o.t !== ' ') for (let x = Math.max(0, k - ctx); x <= Math.min(out.length - 1, k + ctx); x++) keep[x] = true; });
+  const res = []; let skipped = false;
+  out.forEach((o, k) => { if (keep[k]) { res.push(o); skipped = false; } else if (!skipped) { res.push({ t: '…', s: '' }); skipped = true; } });
+  return res;
+}
+
+export const exprId = (e) => `${classify(e.path)}|${e.context}|${e.name}`;
+
+// extracted: [{info, found}] ; map: {items:{id:{expressions:[{path,id,file}]}}} ; readFile: path -> Promise<string|null>
+export async function planSync(extracted, map, readFile, today) {
+  const plan = [];
+  for (const { info, found } of extracted) {
+    const entry = (map.items || {})[info.id];
+    const list = entry ? entry.expressions : [];
+    const usedFiles = new Set();
+    const rows = [];
+    const dirSlug = `${safe(info.title || info.id)}_${info.id.slice(0, 8)}`;
+    const newCount = {};
+    for (const e of found) {
+      const id = exprId(e);
+      const m = list.find((x) => x.path === e.path) || list.find((x) => x.id === id && !usedFiles.has(x.file + '|' + x.path));
+      if (m) {
+        usedFiles.add(m.file + '|' + m.path);
+        const repoText = await readFile(m.file);
+        if (repoText == null) { rows.push({ status: 'missing-file', e, file: m.file, newText: buildUpdatedFile(e.expression, '', today) }); continue; }
+        if (sameExpr(e.expression, repoText)) rows.push({ status: 'same', e, file: m.file });
+        else rows.push({ status: 'changed', e, file: m.file, repoText, newText: buildUpdatedFile(e.expression, repoText, today) });
+      } else {
+        const base = `${classify(e.path)}__${safe(e.context)}__${safe(e.name)}`;
+        newCount[base] = (newCount[base] || 0) + 1;
+        const file = `_inbox/${dirSlug}/${base}${newCount[base] > 1 ? '_' + newCount[base] : ''}.arcade`;
+        rows.push({ status: 'new', e, file, id });
+      }
+    }
+    const seen = new Set(found.map((e) => e.path));
+    const seenIds = new Set(found.map(exprId));
+    const orphans = list.filter((x) => !seen.has(x.path) && !seenIds.has(x.id));
+    plan.push({ info, rows, orphans, mapped: !!entry });
+  }
+  return plan;
+}
+
+// הוספת רשומות חדשות ל-agol-map.json
+export function updateMap(map, plan, chosenNew) {
+  const out = JSON.parse(JSON.stringify(map || { version: 1, items: {} }));
+  out.items = out.items || {};
+  for (const p of plan) {
+    for (const r of p.rows) {
+      if (r.status !== 'new' || !chosenNew.has(r)) continue;
+      const it = (out.items[p.info.id] ||= { title: p.info.title, type: p.info.type, expressions: [] });
+      it.expressions.push({ path: r.e.path, id: r.id, file: r.file });
+    }
+  }
+  return out;
+}
