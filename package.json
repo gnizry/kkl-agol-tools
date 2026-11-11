@@ -1,1 +1,1 @@
-{ "name": "kkl-agol-tools", "private": true, "type": "module", "scripts": { "test": "node test/lib.test.js && node test/sync.test.js && node test/gh.test.js" } }
+{ "name": "kkl-agol-tools", "private": true, "type": "module", "scripts": { "test": "node test/lib.test.js && node test/sync.test.js && node test/gh.test.js && node test/cli.test.js" } }

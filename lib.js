@@ -138,6 +138,11 @@ export const normText = (s) => String(s || '').replace(/\r\n?/g, '\n').split('\n
 export function splitHeader(text) {
   const t = String(text || '').replace(/\r\n?/g, '\n');
   const lines = t.split('\n');
+  // כותרת של כלי הייצוא (קבצי _inbox): שורות // @source-... עד השורה הריקה הראשונה
+  if (/^\/\/ @source-item:/.test(lines[0] || '')) {
+    let k = 0; while (k < lines.length && /^\/\/ ?@/.test(lines[k])) k++;
+    return { header: lines.slice(0, k).join('\n'), body: lines.slice(k).join('\n').replace(/^\n+/, '') };
+  }
   if (!/^\/\/ ?=+\s*$/.test(lines[0] || '')) return { header: '', body: t };
   let end = -1;
   for (let i = 1; i < lines.length; i++) if (/^\/\/ ?=+\s*$/.test(lines[i])) { end = i; break; }
